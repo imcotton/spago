@@ -1,9 +1,30 @@
 "use strict";
 
-const request = require("request");
 const tar = require("tar");
-const version = "PACKAGE_VERSION";
-const platform = { win32: "Windows", darwin: "macOS" }[process.platform] || "Linux";
-const url = `https://github.com/purescript/spago/releases/download/${version}/${platform}.tar.gz`
+const fetch = require("node-fetch");
+const { promisify } = require("util");
+const { pipeline } = require("stream");
+const { strict: assert } = require("assert");
 
-request.get(url).pipe(tar.x({"C": './'}));
+const version = "PACKAGE_VERSION";
+
+const { platform } = process;
+
+const filename = {
+    win32: "Windows",
+    darwin: "macOS",
+    linux: "Linux",
+}[platform];
+
+assert.ok(filename, `non supported platform: ${ platform }`);
+
+const url = [
+    "https://github.com/purescript/spago/releases/download",
+    version,
+    `${ filename }.tar.gz`,
+].join("/");
+
+const pipe = promisify(pipeline);
+
+fetch(url).then(({ body }) => pipe(body, tar.x({ cwd: "./" }))).catch(console.error);
+
